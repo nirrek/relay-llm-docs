@@ -1,0 +1,10 @@
+{
+  "name": "relay-llm-docs",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
