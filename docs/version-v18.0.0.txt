@@ -245,10 +245,14 @@ appropriate runtime artifacts. These directives only appear in your application
 code and are removed from requests sent to your GraphQL server.
 
 <OssOnly>
+
 **Note:** The Relay compiler will maintain any directives supported by your server (such as `@include` or `@skip`) so they remain part of the request to the GraphQL server and won't alter generated runtime artifacts.
+
 </OssOnly>
 <FbInternalOnly>
+
 **Note:** The Relay compiler will maintain any directives supported by your server (such as `@include` or `@skip`) so they remain part of the request to the GraphQL server and won't alter generated runtime artifacts. Additional directives are documented [here](https://www.internalfb.com/intern/wiki/GraphQL/APIs_and_References/Directives/#graphql-standard).
+
 </FbInternalOnly>
 
 ## `@arguments`
@@ -1652,26 +1656,6 @@ function UserComponent({ id }) {
 
 
 ---
-id: legacy-apis
-title: Legacy APIs
-slug: /api-reference/legacy-apis/
-description: API reference for legacy APIs
-keywords:
-  - QueryRenderer
-  - Container
----
-
-API references for our previous legacy APIs are available in our previous docs website:
-
-- [`QueryRenderer`](https://relay.dev/docs/en/v10.1.3/query-renderer)
-- [`Fragment Container`](https://relay.dev/docs/en/v10.1.3/fragment-container)
-- [`Refetch Container`](https://relay.dev/docs/en/v10.1.3/refetch-container)
-- [`Pagination Container`](https://relay.dev/docs/en/v10.1.3/pagination-container)
-- [`Mutations`](https://relay.dev/docs/en/v10.1.3/mutations)
-- [`Subscriptions`](https://relay.dev/docs/en/v10.1.3/subscriptions)
-
-
----
 id: docblock-format
 title: 'Docblock Format'
 slug: /api-reference/relay-resolvers/docblock-format/
@@ -2346,6 +2330,7 @@ Table of Contents:
 
 -   [RecordSourceSelectorProxy](#recordsourceselectorproxy)
 -   [RecordProxy](#recordproxy)
+-   [RecordSourceProxy](#recordsourceproxy)
 -   [ConnectionHandler](#connectionhandler)
 
 ## RecordSourceSelectorProxy
@@ -2376,7 +2361,7 @@ const record = store.create(dataID, 'Todo');
 
 ### `delete(dataID: string): void`
 
-Deletes a record from the store given its `dataID`.
+Deletes a record from the store given its `dataID`. For existing edges to the deleted record, `undefined` will be returned in the default case even when the value is typed as non-nullable. When [`@throwOnFieldError`](../../guides/throw-on-field-error-directive/) is present, the missing data will throw an error.
 
 #### Example
 
@@ -2783,6 +2768,144 @@ After invalidating a record, any query that references the invalidated record an
 ```javascript
 environment.check(query) === 'stale'
 ```
+## RecordSourceProxy
+
+The `RecordSourceProxy` serves as an interface to mutate record.
+
+> **NOTE:** `RecordSourceProxy` exposes many low level APIs that are not typesafe. Users should consider using [typesafe updaters](../../guided-tour/updating-data/typesafe-updaters-faq/), [optimistic updates](../../guided-tour/updating-data/graphql-mutations/#optimistic-updates), and [relay resolvers](../../guides/relay-resolvers/introduction/) instead if their use case can be covered by these alternatives.
+
+```javascript
+interface RecordSourceProxy {
+  create(dataID: DataID, typeName: string): RecordProxy;
+  delete(dataID: DataID): void;
+  get(dataID: DataID): ?RecordProxy;
+  getRoot(): RecordProxy;
+  invalidateStore(): void;
+  readUpdatableFragment<TFragmentType: FragmentType, TData>(
+    fragment: UpdatableFragment<TFragmentType, TData>,
+    fragmentReference: HasUpdatableSpread<TFragmentType>,
+  ): UpdatableData<TData>;
+  readUpdatableQuery<TVariables: Variables, TData>(
+    query: UpdatableQuery<TVariables, TData>,
+    variables: TVariables,
+  ): UpdatableData<TData>;
+}
+```
+
+### `create(dataID: DataID, typeName: string): RecordProxy`
+
+Creates a new record in the store given a `dataID` and the `typeName` as defined by the GraphQL schema. Returns a [`RecordProxy`](#recordproxy) which serves as an interface to mutate the newly created record.
+
+#### Example
+
+```javascript
+const record = store.create(dataID, 'Todo');
+```
+
+### `delete(dataID: DataID): void`
+
+Deletes a record from the store given its `dataID`. For existing edges to the deleted record, `undefined` will be returned in the default case even when the value is typed as non-nullable. When [`@throwOnFieldError`](../../guides/throw-on-field-error-directive/) is present, the missing data will throw an error.
+
+#### Example
+
+```javascript
+store.delete(dataID);
+```
+
+### `get(dataID: DataID): ?RecordProxy`
+
+Retrieves a record from the store given its `dataID`. Returns a [`RecordProxy`](#recordproxy) which serves as an interface to read/mutate the record.
+
+#### Example
+
+```javascript
+const record = store.get(dataID);
+```
+
+### `getRoot(): RecordProxy`
+
+Returns the [`RecordProxy`](#recordproxy) representing the root of the GraphQL document.
+
+#### Example
+
+Given the GraphQL document:
+
+```graphql
+viewer {
+  id
+}
+```
+
+Usage:
+
+```javascript
+// Represents root query
+const root = store.getRoot();
+// Get the viewer linked record
+const viewer = root.getLinkedRecord('viewer');
+```
+
+### `invalidateStore(): void;`
+
+Globally invalidates the Relay store. This will cause any data that was written to the store before invalidation occurred to be considered stale, and will be considered to require refetch the next time a query is checked with `environment.check()` or is fetched with a `store-or-network` [fetch policy](../../guided-tour/reusing-cached-data/fetch-policies/).
+
+#### Example
+
+```javascript
+store.invalidateStore();
+```
+
+After global invalidation, any query that is checked before refetching it will be considered stale:
+
+```javascript
+environment.check(query) === 'stale'
+```
+
+### `readUpdatableFragment(fragment: UpdatableFragment<TFragmentType, TData>,fragmentReference: HasUpdatableSpread<TFragmentType>): UpdatableData<TData>;`
+
+Fetches an updatable fragment from the store. This updatable fragment's fields can then be imperatively modified to update data in the store.
+
+For more information on updating the store imperatively, see this [section](../../guided-tour/updating-data/imperatively-modifying-store-data/) of the guided tour.
+
+#### Example
+```javascript
+const fragment = graphql`
+  fragment StoryLikeButton_updatable on Story @updatable {
+    likeCount
+    doesViewerLike
+  }
+`;
+const {
+  updatableData
+} = store.readUpdatableFragment(
+  fragment,
+  story
+);
+updatableData.likeCount = updatableData.likeCount + 1
+```
+
+### `readUpdatableQuery(query: UpdatableQuery<TVariables, TData>,variables: TVariables): UpdatableData<TData>`
+
+Reads an updatable query from the store. This updatable query's fields can be imperatively modified to update data in the store. Unlike `readUpdatableFragment`, you do not need to pass in a `fragmentReference` as an input argument.
+
+For more information on updating the store imperatively, see this [section](../../guided-tour/updating-data/imperatively-modifying-store-data/) of the guided tour.
+
+#### Example
+
+```javascript
+const {updatableData} = store.readUpdatableQuery(
+  graphql`
+    query NameUpdaterUpdateQuery @updatable {
+      viewer {
+        name
+      }
+    }
+  `,
+  {}
+);
+const viewer = updatableData.viewer;
+viewer.name = newName;
+```
 
 ## ConnectionHandler
 
@@ -3011,12 +3134,6 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 import DocsRating from '@site/src/core/DocsRating';
 import {FbInternalOnly, OssOnly} from 'docusaurus-plugin-internaldocs-fb/internal';
 
-## Relay example projects
-
-These projects serve as an example of how to use Relay in real world applications.
-
--   [github.com/relayjs/relay-examples](https://github.com/relayjs/relay-examples)
-
 ## Guides and articles:
 
 -   [How to use @argumentsDefinitions to define local variables to your fragments](https://medium.com/entria/relay-modern-argumentdefinitions-d53769dbb95d) (by Entria)
@@ -3028,9 +3145,45 @@ These projects serve as an example of how to use Relay in real world application
 
 <OssOnly>
 
-## Relay Modern articles
+## Relay example projects
 
-Note: you can find many more resources by looking at the <a href={useBaseUrl('docs/v10.1.3/community-learning-resources/')}>Relay Modern Documentation.</a>
+These projects serve as an example of how to use Relay in real world applications. Some of them are even with educational videos.
+
+-   [github.com/relayjs/relay-examples](https://github.com/relayjs/relay-examples)
+-   [github.com/adeira/relay-example](https://github.com/adeira/relay-example)
+-   [github.com/juffalow/react-relay-example](https://github.com/juffalow/react-relay-example)
+
+## Learn basics
+
+Here, you will find articles written by Relay community. They are touching basic topic which are necessary for your daily work.
+
+-   [What is a fragment? Basic explanation of what is a fragment and what it is used for](https://medium.com/@sibelius/relay-modern-what-is-a-fragment-c70f164c2469) (by @sibelius)
+-   [Relay anti-patterns. What you should avoid doing when using Relay concepts](https://medium.com/entria/relay-apollo-anti-pattern-d9f4dea47738) (by Entria)
+-   [Insights of how Relay Modern has improved a lot since Relay Classic](https://medium.com/entria/relay-is-just-getting-better-54112ffc1a9e) (by Entria)
+-   [How to use @argumentsDefinitions to define local variables to your fragments](https://medium.com/entria/relay-modern-argumentdefinitions-d53769dbb95d) (by Entria)
+-   [How to paginate using a Refetch Container. You can use a refetch container to paginate as well, just use renderVariables correctly](https://medium.com/entria/relay-modern-pagination-using-refetch-container-editing-a07c6b33ae4e) (by Entria)
+
+## About Relay Store
+
+-   [How Relay Modern stores your data](https://medium.com/@sibelius/relay-modern-the-relay-store-8984cd148798) (by @sibelius)
+-   [Deep Dive of Updater Relay Store function. How to update your store properly after a mutation or subscription](https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac) (by Entria)
+-   [Optimistic Update: how to update your UI before server responds](https://medium.com/entria/relay-modern-optimistic-update-a09ba22d83c9) (by Entria)
+-   [Local State Management, part 1 - how to create a controlled input using Relay](https://babangsund.com/relay_local_state_management/) (by @babangsund)
+-   [Local State Management, part 2 - how to manage global state and localStorage persistence on the client, using Relay](https://babangsund.com/relay_local_state_management_2/) (by @babangsund)
+-   [Local State Management, part 3 - using LocalQueryRenderer and local state to manage nested fragments](https://babangsund.com/relay_local_state_management_3/) (by @babangsund)
+
+## Network Layer
+
+-   [Relay Network Deep Dive - how to incrementally improve your network layer to manage complex data fetching requirements](https://medium.com/entria/relay-modern-network-deep-dive-ec187629dfd3) (by Entria)
+
+## Relay Configuration
+
+-   [Relay Modern with TypeScript - how to configure Relay Modern to make it with TypeScript](https://medium.com/@sibelius/relay-modern-migration-to-typescript-c26ab0ee749c) (by @sibelius)
+
+## Miscellaneous
+
+-   [Relay Modern Learning Blog Posts Thread on Twitter](https://twitter.com/sseraphini/status/1078595758801203202)
+-   [Collection of random thoughts and discoveries around Relay](https://mrtnzlml.com/docs/relay)
 
 </OssOnly>
 
@@ -4292,10 +4445,13 @@ A directive which declares that a field implements the [connection](#connection)
 ## Connection
 
 <FbInternalOnly>
+
 A field implementing the [connection spec](https://relay.dev/graphql/connections.htm). See <a href="https://www.internalfb.com/intern/wiki/Graphql-connections-for-hack-developers/Connection-spec/">here</a> for more details on the spec, and the section of the guided tour on <a href="../guided-tour/list-data/pagination/">rendering list data and pagination</a>.
+
 </FbInternalOnly>
 
 <OssOnly>
+
 A field implementing the [connection spec](https://relay.dev/graphql/connections.htm). See the section of the guided tour on <a href="../guided-tour/list-data/pagination/">rendering list data and pagination</a>.
 </OssOnly>
 
@@ -4334,7 +4490,9 @@ See the [Thinking in Relay guide](../principles-and-architecture/thinking-in-rel
 A directive which can be added to a fragment spread or inline fragment to avoid blocking on that fragment's data. For more detail refer to GraphQL's [documentation on the @defer directive](https://github.com/graphql/graphql-wg/blob/main/rfcs/DeferStream.md#defer).
 
 <FbInternalOnly>
+
 See [Incremental Data Delivery](https://www.internalfb.com/intern/staticdocs/relay/docs/guides/incremental-data-delivery/).
+
 </FbInternalOnly>
 
 ## Definition
@@ -4568,6 +4726,7 @@ A lightweight API for specifying a that a React component should be loaded on de
 This API is safe to use in entrypoint files.
 
 <OssOnly>
+
 See [the npm module](https://www.npmjs.com/package/jsresource).
 </OssOnly>
 
@@ -4644,10 +4803,13 @@ TODO
 A mutation is a combination of two things: a mutation on the backend, followed by query against updated data.
 
 <FbInternalOnly>
+
 See the [guide on mutations](../guided-tour/updating-data/graphql-mutations), and [this article](https://www.internalfb.com/intern/wiki/Graphql-for-hack-developers/mutation-root-fields/) on defining mutations in your hack code.
+
 </FbInternalOnly>
 
 <OssOnly>
+
 See the [guide on mutations](../guided-tour/updating-data/graphql-mutations).
 </OssOnly>
 
@@ -4784,7 +4946,9 @@ Required because of current limitations on dynamically loading components in Rea
 For Relay to process a file with a GraphQL literal, it must be included in a project. A project specifies the folders to which it applies and the schema against which to evaluate GraphQL literals, and includes other information needed by the Relay compiler.
 
 <FbInternalOnly>
+
 Projects are defined in a single [config](#config) file, found [here](https://www.internalfb.com/intern/diffusion/WWW/browse/master/scripts/relay/compiler-rs/config.www.json) and [here](https://www.internalfb.com/intern/diffusion/FBS/browse/master/xplat/relay/compiler-rs/config.xplat.json).
+
 </FbInternalOnly>
 
 ## Profiler
@@ -5003,6 +5167,7 @@ TODO
 A collection of all of the GraphQL types that are known to Relay, for a given [project](#project).
 
 <FbInternalOnly>
+
 ## Schema Sync
 
 The GraphQL [schema](#schema) is derived from annotations on Hack classes in the www repository.
@@ -7014,6 +7179,7 @@ function App(props: Props) {
   const refetch = useCallback(() => {
     if (isRefetching) { return; }
     setIsRefetching(true);
+    const variables = { id: 'different-id' };
 
     // fetchQuery will fetch the query and write
     // the data to the Relay store. This will ensure
@@ -7030,7 +7196,7 @@ function App(props: Props) {
           // At this point the data for the query should
           // be cached, so we use the 'store-only'
           // fetchPolicy to avoid suspending.
-          loadQuery({id: 'different-id'}, {fetchPolicy: 'store-only'});
+          loadQuery(variables, {fetchPolicy: 'store-only'});
         },
         error: () => {
           setIsRefetching(false);
@@ -7176,6 +7342,7 @@ function App(props: Props) {
   const refetch = useCallback(() => {
     if (isRefreshing) { return; }
     setIsRefreshing(true);
+    const variables = { id: 'different-id' };
 
     // fetchQuery will fetch the query and write
     // the data to the Relay store. This will ensure
@@ -7197,7 +7364,7 @@ function App(props: Props) {
               fetchKey: (prev?.options.fetchKey ?? 0) + 1,
               fetchPolicy: 'store-only',
             },
-            variables: {id: 'different-id'}
+            variables,
           }));
         },
         error: () => {
@@ -7254,9 +7421,11 @@ When referring to **"refreshing a fragment"**, we mean fetching the *exact* same
 </FbInternalOnly>
 
 <OssOnly>
+
 If we want to keep our data up to date with the latest version from the server, the first thing to consider is if it appropriate to use any real-time features, which can make it easier to automatically keep the data up to date without manually refreshing the data periodically.
 
 One example of this is using [GraphQL Subscriptions](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions/), which will require additional configuration on your server and [network layer](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions/#configuring-the-network-layer).
+
 </OssOnly>
 
 ## Using `useRefetchableFragment`
@@ -7448,6 +7617,7 @@ When referring to **"refreshing a query"**, we mean fetching the *exact* same da
 </FbInternalOnly>
 
 <OssOnly>
+
 If we want to keep our data up to date with the latest version from the server, the first thing to consider is if it appropriate to use any real-time features, which can make it easier to automatically keep the data up to date without manually refreshing the data periodically.
 
 One example of this is using [GraphQL Subscriptions](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions), which will require additional configuration on your server and [network layer](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions/#configuring-the-network-layer).
@@ -11692,6 +11862,8 @@ Is something missing from this Q&A? Are you confused? Would you like help adopti
 
 Typesafe updaters is the name given to a project to provide a typesafe and ergonomic alternative to the existing APIs for imperatively updating data in the Relay store.
 
+For example, [`readUpdatableFragment`](../../../api-reference/store/#readupdatablefragmentfragment-updatablefragmenttfragmenttype-tdatafragmentreference-hasupdatablespreadtfragmenttype-updatabledatatdata) and [`readUpdatableQuery`](../../../api-reference/store/#readupdatablequeryquery-updatablequerytvariables-tdatavariables-tvariables-updatabledatatdata) are two typesafe updaters that the store exposes.
+
 ## Why?
 
 Relay provides typesafe and ergonomic APIs for fetching and managing data that originates on the server. In addition, Relay provides the ability to define local-only fields in **client schema extensions**. However, the APIs for mutating the data in these fields has hitherto been verbose and not ergonomic, meaning that we could not recommend Relay as a solution for managing local state.
@@ -11700,15 +11872,11 @@ Relay provides typesafe and ergonomic APIs for fetching and managing data that o
 
 The pre-existing APIs are verbose and not typesafe. They make it easy to make a variety of mistakes and require that the developer understand a new set of APIs only when writing updaters.
 
-Typesafe updaters is a set of APIs that are typesafe and (hopefully) more ergonomic. They leverage well-known Relay idioms (queries, fragments, type refinement) and use getters and setters instead of requiring that the developer learn about a set of methods that are unused elsewhere.
+Typesafe updaters is a set of APIs that are typesafe and more ergonomic. They leverage well-known Relay idioms (queries, fragments, type refinement) and use getters and setters instead of requiring that the developer learn about a set of methods that are unused elsewhere.
 
 ## How does a developer use typesafe updaters?
 
 With typesafe updaters, a developers writes an updatable query or a fragment that specifies the data to imperatively update. Then, the developer reads out that data from the store, returning a so-called **updatable proxy**. Then, the developer mutates that updatable proxy. Mutating that updatable proxy using setters (e.g. `updatableData.name = "Godzilla"`) results in calls to the old API, but with added type safety.
-
-## Why are these labeled `_EXPERIMENTAL`?
-
-These are de facto not experimental. We encourage you to use them when writing new code! This suffix will be removed soon.
 
 ## What is an updatable query or fragment?
 
@@ -11737,7 +11905,7 @@ You should select that field in both a regular query/fragment **and** in an upda
 
 ## Where do I get a `store`?
 
-The classes `RelayRecordSourceSelectorProxy` and `RelayRecordSourceProxy` contain the methods `readUpdatableQuery` and `readUpdatableFragment`. One can acquire an instance of these classes:
+The classes `RelayRecordSourceSelectorProxy`, `RecordSourceProxy` and `RelayRecordSourceProxy` contain the methods `readUpdatableQuery` and `readUpdatableFragment`. One can acquire an instance of these classes:
 
 * In updaters of mutations and subscriptions
 * In optimistic updaters of mutations
@@ -12109,7 +12277,7 @@ other fields that are not under a `@catch` will still not throw - because
 `@throwOnFieldError` would be missing.
 
 Read more about `@throwOnFieldError`
-[here](https://relay.dev/docs/next/api-reference/graphql-and-directives/#throwonfielderror-experimental).
+[here](https://relay.dev/docs/next/api-reference/graphql-and-directives/#throwonfielderror).
 
 ## `@catch` arguments
 
@@ -13514,6 +13682,60 @@ export type ProfilePicture = { url: string, height: number, width: number };
 Generally weak types are used for creating a namespace for a set of fields that ultimately "belong" to a parent object.
 :::
 
+### Implementing Abstract Types
+
+Relay Resolver types can implement [abstract types](https://relay.dev/docs/glossary/#abstract-type) defined in the graphql schema. Note, these abstract types can
+be defined on your GraphQL server schema OR a [client side schema extension](https://relay.dev/docs/next/guides/client-schema-extensions/).
+
+For example, given the following interface:
+
+```graphql
+# IUser.graphql
+interface IUser {
+  name: String
+}
+```
+
+You could define two (or more) concrete resolver types that implement the IUser interface by adding annotations in the docblock (the same applies for unions).
+<FbInternalOnly>
+
+Note, support for abstract types is not available for relay resolvers in Flow syntax (yet).
+
+</FbInternalOnly>
+
+<Tabs
+  groupId="resolver"
+  defaultValue="Docblock"
+  values={fbContent({
+    internal: [
+      {label: 'Docblock', value: 'Docblock'},
+    ],
+    external: [
+      {label: 'Docblock', value: 'Docblock'},
+    ]
+  })}>
+  <TabItem value="Docblock">
+
+
+```tsx
+/**
+ * @RelayResolver BasicUser implements IUser
+ */
+export function BasicUser(id: DataID): BasicUserModel {
+  return { ...BasicUserService.getById(id), name: 'BasicUser1'};
+}
+
+/**
+ * @RelayResolver SpecialUser implements IUser
+ */
+export function SpecialUser(id: DataID): SpecialUserModel {
+  return { ...SpecialUserService.getById(id), name: 'SpecalUser1'};
+}
+```
+
+  </TabItem>
+</Tabs>
+
 
 ---
 id: deprecated
@@ -13735,7 +13957,7 @@ Relay Resolvers must be enabled in your runtime code by using our experimental `
 ```ts
 import { Environment, RecordSource, RelayFeatureFlags } from "relay-runtime";
 // highlight-next-line
-import LiveResolverStore from "relay-runtime/lib/store/experimental-live-resolvers/LiveResolverStore";
+import LiveResolverStore from "relay-runtime/lib/store/live-resolvers/LiveResolverStore";
 
 RelayFeatureFlags.ENABLE_RELAY_RESOLVERS = true;
 
@@ -13751,7 +13973,7 @@ function fieldLogger(event) {
 const environment = new Environment({
   network: Network.create(/* your fetch function here */),
   store: new LiveResolverStore(new RecordSource()),
-  relayFieldLogger: fieldLogger
+  requiredFieldLogger: fieldLogger
 });
 
 // ... create your Relay context with your environment
@@ -13831,6 +14053,22 @@ const environment = new Environment({
 :::note
 [Live Resolvers](./live-fields.md) can potentially throw errors when they are first evaluated or when their `.read()` method is called. Both types of errors will be handled identically by Relay.
 :::
+
+## Support for Semantic Nullability
+
+Relay resolver fields can be specified as [semantically non-null](../../semantic-nullability/) just like server schema fields. Developers can add the directive `@semanticNonNull` in the docblock of a relay resolver in order to indicate that the field is non-nullable in the semantic sense, but that the client should still be prepared to handle errors.
+
+For example:
+```ts
+/**
+ * @RelayResolver RelayExample.semantic_non_null_field: String @semanticNonNull
+ */
+export function semantic_non_null_field(
+  model: RelayExampleModel,
+): string {
+  return model.someField ?? 'field was null, this is the default';
+}
+```
 
 
 ---
@@ -13978,14 +14216,6 @@ Relay Resolvers are do have some limitations. Here we will collect a list of kno
 ## No info argument
 
 In a full GraphQL implementation, resolvers would have access to an `info` argument. This argument is not available in Relay Resolvers today.
-
-## No support for abstract types
-
-Today it is not possible to define an interface or union with multiple concrete types using Relay Resolvers. This is something we would like to support in the future, but have not yet implemented.
-
-## All fields must be nullable
-
-Today all resolvers must be typed as nullable in order to support coercing errors to null without having to implement null bubbling. In the future we intend Resolvers to support some version of [strict semantic nullability](https://github.com/graphql/graphql-wg/discussions/1410).
 
 ## Not all GraphQL constructs are supported
 
@@ -14536,7 +14766,9 @@ fragment MyFrag on Actor {
 In this situation Relay will generate a union type like: `{__typename: 'User', name: string} | {__typename: '%ignore this%}`. Now you can check the `__typename` field to narrow your object's type down to one that has a non-nullable `name`.
 
 <FbInternalOnly>
+
 Example diff showing the adoption of this strategy: D24370183
+
 </FbInternalOnly>
 
 ### Why not implement this at the schema/server level?
@@ -14732,7 +14964,9 @@ With the `MockPayloadGenerator` and `@relay_test_operation`, we want to get rid 
 **[React Testing Library](https://testing-library.com/react)** is a set of helpers that let you test React components without relying on their implementation details. This approach makes refactoring a breeze and also nudges you towards best practices for accessibility. Although it doesn't provide a way to "shallowly" render a component without its children, a test runner like Jest lets you do this by [mocking](https://reactjs.org/docs/testing-recipes.html#mocking-modules).
 
 <FbInternalOnly>
+
 Note: The [`ReactTestRenderer`](https://www.npmjs.com/package/react-test-renderer) library has been deprecated since React v18. `ReactTestRenderer` may still be referenced internally as an alternative to React Testing Library. However, when possible, we recommend using React Testing Library (or `@testing-library/react-native`) to test your React applications with Relay.
+
 </FbInternalOnly>
 
 ## RelayMockEnvironment API Overview
@@ -16025,7 +16259,7 @@ import DocsRating from '@site/src/core/DocsRating';
 
 ## Compatibility between Relay Hooks and Containers
 
-Relay Hooks are fully compatible with Relay's [container-based APIs](../../api-reference/legacy-apis/), meaning that containers can render components that use Hooks, and vice-versa.
+Relay Hooks are fully compatible with Relay's container-based APIs, meaning that containers can render components that use Hooks, and vice-versa.
 
 This means that you can adopt Relay Hooks incrementally, either by using them exclusively for new code, or by migrating specific parts of your app, without affecting the rest of your existing application.
 
@@ -18166,7 +18400,7 @@ const NewsfeedQuery = graphql`
           url
         }
       }
-      image {
+      thumbnail {
         url
       }
     }
@@ -18236,7 +18470,7 @@ const StoryFragment = graphql`
         url
       }
     }
-    image {
+    thumbnail {
       url
     }
   }
@@ -18287,7 +18521,7 @@ export default function Story({story}: Props) {
       <Heading>{data.title}</Heading>
       <PosterByline poster={data.poster} />
       <Timestamp time={data.createdAt} />
-      <Image image={data.image} />
+      <Image image={data.thumbnail} />
       <StorySummary summary={data.summary} />
     </Card>
   );
@@ -20671,7 +20905,9 @@ import {OssOnly, FbInternalOnly} from 'docusaurus-plugin-internaldocs-fb/interna
 Besides fragments on types that implement `Node`, you can also refetch fragments that are on `Viewer` (since the viewer is assumed to be stable throughout a session) and that are at the top level of a query (since there’s no field above them that could change identity).
 
 <FbInternalOnly>
+
 Meta only: Ents marked with <a href="https://fb.workplace.com/groups/graphql.fyi/permalink/1539541276187011/" target="_blank">GraphQLFetchable</a> can also be refetched.
+
 </FbInternalOnly>
 
 </details>

@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   // 3) ensure output folder
   await mkdir(OUT_DIR, { recursive: true });
 
-  // 4) build each
+  // 4) build each .txt with XML wrapper
   for (const dirPath of versionDirs) {
     const versionFolder = basename(dirPath); // e.g. "version-v13.0.0"
     const version = versionFolder.replace(/^version-v/, ""); // "13.0.0"
@@ -55,7 +55,35 @@ async function main(): Promise<void> {
     console.log(`→ Built ${outFile}`);
   }
 
-  // 5) clean up the temp folder
+  // 5) generate index.html linking all .txt
+  const outEntries = await readdir(OUT_DIR, { withFileTypes: true });
+  const txtFiles = outEntries
+    .filter((e) => e.isFile() && e.name.endsWith(".txt"))
+    .map((e) => e.name)
+    .sort();
+
+  const links = txtFiles
+    .map((f) => `      <li><a href="./${f}">${f}</a></li>`)
+    .join("\n");
+
+  const indexHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Relay LLM Docs</title>
+  </head>
+  <body>
+    <h1>Relay LLM Docs</h1>
+    <ul>
+${links}
+    </ul>
+  </body>
+</html>`;
+
+  await writeFile(join(OUT_DIR, "index.html"), indexHtml, "utf8");
+  console.log(`→ Built ${OUT_DIR}/index.html`);
+
+  // 6) clean up the temp folder
   await rm(TMP_DIR, { recursive: true, force: true });
 
   console.log("✅ All done.");

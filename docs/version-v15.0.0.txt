@@ -242,10 +242,14 @@ import {FbInternalOnly, OssOnly} from 'docusaurus-plugin-internaldocs-fb/interna
 Relay uses directives to add additional information to GraphQL documents, which are used by the [Relay compiler](../../guides/compiler/) to generate the appropriate runtime artifacts. These directives only appear in your application code and are removed from requests sent to your GraphQL server.
 
 <OssOnly>
+
 **Note:** The Relay compiler will maintain any directives supported by your server (such as `@include` or `@skip`) so they remain part of the request to the GraphQL server and won't alter generated runtime artifacts.
+
 </OssOnly>
 <FbInternalOnly>
+
 **Note:** The Relay compiler will maintain any directives supported by your server (such as `@include` or `@skip`) so they remain part of the request to the GraphQL server and won't alter generated runtime artifacts. Additional directives are documented [here](https://www.internalfb.com/intern/wiki/GraphQL/APIs_and_References/Directives/#graphql-standard).
+
 </FbInternalOnly>
 
 ## `@arguments`
@@ -2435,12 +2439,6 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 import DocsRating from '@site/src/core/DocsRating';
 import {FbInternalOnly, OssOnly} from 'docusaurus-plugin-internaldocs-fb/internal';
 
-## Relay example projects
-
-These projects serve as an example of how to use Relay in real world applications.
-
--   [github.com/relayjs/relay-examples](https://github.com/relayjs/relay-examples)
-
 ## Guides and articles:
 
 -   [How to use @argumentsDefinitions to define local variables to your fragments](https://medium.com/entria/relay-modern-argumentdefinitions-d53769dbb95d) (by Entria)
@@ -2452,9 +2450,45 @@ These projects serve as an example of how to use Relay in real world application
 
 <OssOnly>
 
-## Relay Modern articles
+## Relay example projects
 
-Note: you can find many more resources by looking at the <a href={useBaseUrl('docs/v10.1.3/community-learning-resources/')}>Relay Modern Documentation.</a>
+These projects serve as an example of how to use Relay in real world applications. Some of them are even with educational videos.
+
+-   [github.com/relayjs/relay-examples](https://github.com/relayjs/relay-examples)
+-   [github.com/adeira/relay-example](https://github.com/adeira/relay-example)
+-   [github.com/juffalow/react-relay-example](https://github.com/juffalow/react-relay-example)
+
+## Learn basics
+
+Here, you will find articles written by Relay community. They are touching basic topic which are necessary for your daily work.
+
+-   [What is a fragment? Basic explanation of what is a fragment and what it is used for](https://medium.com/@sibelius/relay-modern-what-is-a-fragment-c70f164c2469) (by @sibelius)
+-   [Relay anti-patterns. What you should avoid doing when using Relay concepts](https://medium.com/entria/relay-apollo-anti-pattern-d9f4dea47738) (by Entria)
+-   [Insights of how Relay Modern has improved a lot since Relay Classic](https://medium.com/entria/relay-is-just-getting-better-54112ffc1a9e) (by Entria)
+-   [How to use @argumentsDefinitions to define local variables to your fragments](https://medium.com/entria/relay-modern-argumentdefinitions-d53769dbb95d) (by Entria)
+-   [How to paginate using a Refetch Container. You can use a refetch container to paginate as well, just use renderVariables correctly](https://medium.com/entria/relay-modern-pagination-using-refetch-container-editing-a07c6b33ae4e) (by Entria)
+
+## About Relay Store
+
+-   [How Relay Modern stores your data](https://medium.com/@sibelius/relay-modern-the-relay-store-8984cd148798) (by @sibelius)
+-   [Deep Dive of Updater Relay Store function. How to update your store properly after a mutation or subscription](https://medium.com/entria/wrangling-the-client-store-with-the-relay-modern-updater-function-5c32149a71ac) (by Entria)
+-   [Optimistic Update: how to update your UI before server responds](https://medium.com/entria/relay-modern-optimistic-update-a09ba22d83c9) (by Entria)
+-   [Local State Management, part 1 - how to create a controlled input using Relay](https://babangsund.com/relay_local_state_management/) (by @babangsund)
+-   [Local State Management, part 2 - how to manage global state and localStorage persistence on the client, using Relay](https://babangsund.com/relay_local_state_management_2/) (by @babangsund)
+-   [Local State Management, part 3 - using LocalQueryRenderer and local state to manage nested fragments](https://babangsund.com/relay_local_state_management_3/) (by @babangsund)
+
+## Network Layer
+
+-   [Relay Network Deep Dive - how to incrementally improve your network layer to manage complex data fetching requirements](https://medium.com/entria/relay-modern-network-deep-dive-ec187629dfd3) (by Entria)
+
+## Relay Configuration
+
+-   [Relay Modern with TypeScript - how to configure Relay Modern to make it with TypeScript](https://medium.com/@sibelius/relay-modern-migration-to-typescript-c26ab0ee749c) (by @sibelius)
+
+## Miscellaneous
+
+-   [Relay Modern Learning Blog Posts Thread on Twitter](https://twitter.com/sseraphini/status/1078595758801203202)
+-   [Collection of random thoughts and discoveries around Relay](https://mrtnzlml.com/docs/relay)
 
 </OssOnly>
 
@@ -3542,11 +3576,14 @@ A directive which declares that a field implements the [connection](#connection)
 ## Connection
 
 <FbInternalOnly>
+
 A field implementing the connection spec. See <a href="https://www.internalfb.com/intern/wiki/Graphql-connections-for-hack-developers/Connection-spec/">here</a> for more details on the spec, and the section of the guided tour on <a href="../guided-tour/list-data/pagination/">rendering list data and pagination</a>.
+
 </FbInternalOnly>
 
 <OssOnly>
-A field implementing the connection spec. See the section of the guided tour on <a href="../guided-tour/list-data/pagination/">rendering list data and pagination</a>.
+
+(\S+) field implementing the connection spec. See the section of the guided tour on <a href="../guided-tour/list-data/pagination/">rendering list data and pagination</a>.
 </OssOnly>
 
 See also [`usePaginationFragment`](../api-reference/use-pagination-fragment).
@@ -3584,7 +3621,9 @@ See the [Thinking in Relay guide](../principles-and-architecture/thinking-in-rel
 A directive which can be added to a fragment spread or inline fragment to avoid blocking on that fragment's data.
 
 <FbInternalOnly>
+
 See the [documentation](https://www.internalfb.com/intern/wiki/Relay/Web/incremental-data-delivery-defer-stream/#defer).
+
 </FbInternalOnly>
 
 ## Definition
@@ -3818,7 +3857,8 @@ A lightweight API for specifying a that a React component should be loaded on de
 This API is safe to use in entrypoint files.
 
 <OssOnly>
-See [the npm module](https://www.npmjs.com/package/jsresource).
+
+(\S+) [the npm module](https://www.npmjs.com/package/jsresource).
 </OssOnly>
 
 ## Lazy Loading
@@ -3880,11 +3920,14 @@ TODO
 A mutation is a combination of two things: a mutation on the backend, followed by query against updated data.
 
 <FbInternalOnly>
+
 See the [guide on mutations](../guided-tour/updating-data/graphql-mutations), and [this article](https://www.internalfb.com/intern/wiki/Graphql-for-hack-developers/mutation-root-fields/) on defining mutations in your hack code.
+
 </FbInternalOnly>
 
 <OssOnly>
-See the [guide on mutations](../guided-tour/updating-data/graphql-mutations).
+
+(\S+) the [guide on mutations](../guided-tour/updating-data/graphql-mutations).
 </OssOnly>
 
 ## Mutation Root Query
@@ -4020,7 +4063,9 @@ Required because of current limitations on dynamically loading components in Rea
 For Relay to process a file with a GraphQL literal, it must be included in a project. A project specifies the folders to which it applies and the schema against which to evaluate GraphQL literals, and includes other information needed by the Relay compiler.
 
 <FbInternalOnly>
+
 Projects are defined in a single [config](#config) file, found [here](https://www.internalfb.com/intern/diffusion/WWW/browse/master/scripts/relay/compiler-rs/config.www.json) and [here](https://www.internalfb.com/intern/diffusion/FBS/browse/master/xplat/relay/compiler-rs/config.xplat.json).
+
 </FbInternalOnly>
 
 ## Profiler
@@ -4240,6 +4285,7 @@ TODO
 A collection of all of the GraphQL types that are known to Relay, for a given [project](#project).
 
 <FbInternalOnly>
+
 ## Schema Sync
 
 The GraphQL [schema](#schema) is derived from annotations on Hack classes in the www repository.
@@ -6490,9 +6536,11 @@ When referring to **"refreshing a fragment"**, we mean fetching the *exact* same
 </FbInternalOnly>
 
 <OssOnly>
+
 If we want to keep our data up to date with the latest version from the server, the first thing to consider is if it appropriate to use any real-time features, which can make it easier to automatically keep the data up to date without manually refreshing the data periodically.
 
 One example of this is using [GraphQL Subscriptions](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions/), which will require additional configuration on your server and [network layer](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions/#configuring-the-network-layer).
+
 </OssOnly>
 
 ## Using `useRefetchableFragment`
@@ -6684,9 +6732,11 @@ When referring to **"refreshing a query"**, we mean fetching the *exact* same da
 </FbInternalOnly>
 
 <OssOnly>
+
 If we want to keep our data up to date with the latest version from the server, the first thing to consider is if it appropriate to use any real-time features, which can make it easier to automatically keep the data up to date without manually refreshing the data periodically.
 
 One example of this is using [GraphQL Subscriptions](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions), which will require additional configuration on your server and [network layer](https://relay.dev/docs/guided-tour/updating-data/graphql-subscriptions/#configuring-the-network-layer).
+
 </OssOnly>
 
 ## When using `useQueryLoader` / `loadQuery`
@@ -12378,9 +12428,11 @@ In order for Relay to be able to call a Relay Resolver, it must conform to a set
 Unlike server resolvers, Relay Resolvers may return any JavaScript value. This includes classes, functions and arrays. However, we generally encourage having Relay Resolvers return scalar values and only returning more complex JavaScript values (like functions) as an escape hatch.
 
 <FbInternalOnly>
+
 ## Lint Rule
 
 In many cases, the contents of the docblock can be derived from the javascript implementation. In those cases, the [`relay-resolvers`](https://www.internalfb.com/eslint/relay-resolvers) ESLint rule rule will offer auto-fixes to derive the docblock from the implementation and ensure that the two remain in sync. The lint rule also enforces a naming convention for resolver function and modules names.
+
 </FbInternalOnly>
 
 ## How They Work
@@ -12736,7 +12788,9 @@ fragment MyFrag on Actor {
 In this situation Relay will generate a union type like: `{__typename: 'User', name: string} | {__typename: '%ignore this%}`. Now you can check the `__typename` field to narrow your object's type down to one that has a non-nullable `name`.
 
 <FbInternalOnly>
+
 Example diff showing the adoption of this strategy: D24370183
+
 </FbInternalOnly>
 
 ### Why not implement this at the schema/server level?
@@ -18633,7 +18687,9 @@ import {OssOnly, FbInternalOnly} from 'docusaurus-plugin-internaldocs-fb/interna
 Besides fragments on types that implement `Node`, you can also refetch fragments that are on `Viewer` (since the viewer is assumed to be stable throughout a session) and that are at the top level of a query (since there’s no field above them that could change identity).
 
 <FbInternalOnly>
+
 Meta only: Ents marked with <a href="https://fb.workplace.com/groups/graphql.fyi/permalink/1539541276187011/" target="_blank">GraphQLFetchable</a> can also be refetched.
+
 </FbInternalOnly>
 
 </details>
