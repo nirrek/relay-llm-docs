@@ -55,14 +55,30 @@ async function main(): Promise<void> {
     console.log(`→ Built ${outFile}`);
   }
 
-  // 5) generate index.html linking all .txt
+  // 5) generate index.html linking all .txt (newest-to-oldest)
   const outEntries = await readdir(OUT_DIR, { withFileTypes: true });
   const txtFiles = outEntries
     .filter((e) => e.isFile() && e.name.endsWith(".txt"))
-    .map((e) => e.name)
-    .sort();
+    .map((e) => e.name);
 
-  const links = txtFiles
+  // parse semver and sort descending
+  const sortedFiles = txtFiles
+    .map((filename) => {
+      const sem = filename.replace(/^version-v/, "").replace(/\.txt$/, "");
+      const parts = sem.split(".").map((n) => parseInt(n, 10));
+      return { filename, parts };
+    })
+    .sort((a, b) => {
+      for (let i = 0; i < 3; i++) {
+        if (b.parts[i] !== a.parts[i]) {
+          return b.parts[i]! - a.parts[i]!;
+        }
+      }
+      return 0;
+    })
+    .map((o) => o.filename);
+
+  const links = sortedFiles
     .map((f) => `      <li><a href="./${f}">${f}</a></li>`)
     .join("\n");
 
@@ -81,7 +97,7 @@ ${links}
 </html>`;
 
   await writeFile(join(OUT_DIR, "index.html"), indexHtml, "utf8");
-  console.log(`→ Built ${OUT_DIR}/index.html`);
+  console.log("→ Built ${OUT_DIR}/index.html");
 
   // 6) clean up the temp folder
   await rm(TMP_DIR, { recursive: true, force: true });
